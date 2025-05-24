@@ -16,9 +16,6 @@ CHAT_HEIGHT = 20
 CHAT_WIDTH = 80
 INPUT_HEIGHT = 5
 
-# TODO_FEAT: submit history as context
-# TODO_CHORE: publish to github and make vimplug available
-# - (?) predefined instructions?
 
 def _create_http_conn(api_url=API_BASE_URL, timeout=API_TIMEOUT_SEC):
     parsed = urlparse(api_url)
@@ -42,12 +39,12 @@ class LLMClient:
         data = json.loads(body)
         return [model["name"] for model in data.get("models", [])]
 
-    def chat(self, message, model):
+    def chat(self, messages, model):
         headers = {'Content-Type': 'application/json'}
         payload = json.dumps({
+            'stream': True,
             'model': model,
-            'messages': [{'role': 'user', 'content': message}],
-            'stream': True
+            'messages': messages,
         })
         response = self._do_request('POST', '/api/chat', body=payload, headers=headers)
         for line in response:
@@ -70,7 +67,7 @@ class Vilm:
         self.input_win = None
         self.history = []
         self.client = LLMClient()
-        self.current_model = self.nvim.vars.get('llm_chat_default_model', 'llama3.2:3b')
+        self.current_model = self.nvim.vars.get('vilm_default_model', 'llama3.2:3b')
 
     def _log_message(self, msg):
         self.nvim.out_write(msg + "\n")
@@ -194,7 +191,7 @@ class Vilm:
         line_idx = self.nvim.api.buf_line_count(self.chat_buf)
         full_response = ""
         try:
-            for chunk in self.client.chat(message, self.current_model):
+            for chunk in self.client.chat(self.history, self.current_model):
                 full_response += chunk
                 lines = full_response.splitlines()
                 if full_response.endswith('\n'):
@@ -218,8 +215,8 @@ class Vilm:
         message = '\n'.join(lines).strip()
         if not message:
             return
-
         self.history.append({'role': 'user', 'content': message})
+
         with self._temporary_modifiable(self.chat_buf):
             ts = datetime.now().strftime('%H:%M:%S')
             self._append_to_buf(self.chat_buf,
@@ -278,11 +275,15 @@ class Vilm:
 
     @pynvim.command('VILMToggle', nargs='0', sync=True)
     def toggle_chat(self, args):
-
         if self._is_chat_open():
             self.close_chat(args)
         else:
             self.open_chat(args, (0, 0))
+
+    @pynvim.command('VILMStatus', nargs='0', sync=True)
+    def status(self, args):
+        self._log_message(
+            f'model: {self.current_model}; history_length: {len(self.history)}')
 
     @pynvim.function('VILMCompleteModels', sync=True)
     def complete_models(self, args):

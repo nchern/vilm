@@ -424,6 +424,7 @@ disable=raw-checker-failed,
         suppressed-message,
         useless-suppression,
         deprecated-pragma,
+        dangerous-default-value,
         unused-argument,
         use-symbolic-message-instead
 
