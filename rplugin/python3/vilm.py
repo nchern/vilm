@@ -57,6 +57,8 @@ class LLMClient:
                 continue
 
 
+# TODO_FEAT: Add :VILMAssist for inline help in the current buffer
+# TODO_FEAT: Add an abiltiy to pass system message to models for customization
 @pynvim.plugin
 class Vilm:
     def __init__(self, nvim):
