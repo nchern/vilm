@@ -12,6 +12,10 @@ import pynvim
 API_BASE_URL = 'http://localhost:11434'
 API_TIMEOUT_SEC = 30
 
+CHAT_HEIGHT = 20
+CHAT_WIDTH = 80
+INPUT_HEIGHT = 5
+
 # TODO_FEAT: submit history as context
 # TODO_CHORE: publish to github and make vimplug available
 # - (?) predefined instructions?
@@ -133,6 +137,12 @@ class Vilm:
     def _is_chat_open(self):
         return self.chat_win and self.nvim.api.win_is_valid(self.chat_win)
 
+    def _copy_range(self, selected_range, src_buf, dst_buf):
+        if selected_range and selected_range != (0, 0):
+            start, end = selected_range
+            lines = self.nvim.api.buf_get_lines(src_buf, start - 1, end, False)
+            self._set_buf_content(dst_buf, lines)
+
     @pynvim.command('VILMChat', range='', nargs='0', sync=True)
     def open_chat(self, args, selected_range):
         if self._is_chat_open():
@@ -149,26 +159,19 @@ class Vilm:
             self._bind_close_key(self.input_buf)
             self._bind_send_key()
 
-        chat_height = 20
-        chat_width = 80
-        input_height = 5
-
-        col = max((self._editor_width() - chat_width) // 2, 0)
-        chat_row = max((self._editor_height() - (chat_height + input_height + 1)) // 2, 0)
-        input_row = chat_row + chat_height + 1
+        col = max((self._editor_width() - CHAT_WIDTH) // 2, 0)
+        chat_row = max((self._editor_height() - (CHAT_HEIGHT + INPUT_HEIGHT + 1)) // 2, 0)
+        input_row = chat_row + CHAT_HEIGHT + 1
 
         self.chat_win = self._create_floating_win(
-                self.chat_buf, chat_height, chat_width, chat_row, col)
+                self.chat_buf, CHAT_HEIGHT, CHAT_WIDTH, chat_row, col)
         self.input_win = self._create_floating_win(
-                self.input_buf, input_height, chat_width, input_row, col)
+                self.input_buf, INPUT_HEIGHT, CHAT_WIDTH, input_row, col)
 
         self.nvim.api.buf_set_option(self.chat_buf, 'modifiable', False)
         self.nvim.api.buf_set_option(self.input_buf, 'modifiable', True)
 
-        if selected_range and selected_range != (0, 0):
-            start, end = selected_range
-            lines = self.nvim.api.buf_get_lines(orig_buf, start - 1, end, False)
-            self._set_buf_content(self.input_buf, lines)
+        self._copy_range(selected_range, orig_buf, self.input_buf)
 
     @pynvim.command('VILMCloseChat', nargs='0')
     def close_chat(self, args):
