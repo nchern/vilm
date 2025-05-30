@@ -137,10 +137,9 @@ class Vilm:
         return self.chat_win and self.nvim.api.win_is_valid(self.chat_win)
 
     def _copy_range(self, selected_range, src_buf, dst_buf):
-        if selected_range and selected_range != (0, 0):
-            start, end = selected_range
-            lines = self.nvim.api.buf_get_lines(src_buf, start - 1, end, False)
-            self._set_buf_content(dst_buf, lines)
+        start, end = selected_range
+        lines = self.nvim.api.buf_get_lines(src_buf, start - 1, end, False)
+        self._set_buf_content(dst_buf, lines)
 
     @pynvim.command('VILMChat', range='', nargs='0', sync=True)
     def open_chat(self, args, selected_range):
@@ -149,6 +148,7 @@ class Vilm:
             return
         # capture the current buffer BEFORE creating new ones
         orig_buf = self.nvim.current.buffer
+        orig_win = self.nvim.current.window
 
         if not self.chat_buf or not self.nvim.api.buf_is_valid(self.chat_buf):
             self.chat_buf = self._create_chat_buf()
@@ -170,7 +170,10 @@ class Vilm:
         self.nvim.api.buf_set_option(self.chat_buf, 'modifiable', False)
         self.nvim.api.buf_set_option(self.input_buf, 'modifiable', True)
 
-        self._copy_range(selected_range, orig_buf, self.input_buf)
+        if selected_range and selected_range != (0, 0):
+            self._copy_range(selected_range, orig_buf, self.input_buf)
+            end_col = len(self.nvim.current.buffer[selected_range[1] - 1])
+            self.nvim.api.win_set_cursor(orig_win, [selected_range[1], end_col])
 
     @pynvim.command('VILMCloseChat', nargs='0')
     def close_chat(self, args):
