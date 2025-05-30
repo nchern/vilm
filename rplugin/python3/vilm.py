@@ -110,12 +110,12 @@ class Vilm:
 
     def _bind_send_key(self):
         self.nvim.api.buf_set_keymap(
-           self.input_buf, 'n', '<leader><CR>',':VILMSend<CR>',
-            {'nowait': True, 'noremap': True, 'silent': True}
+           self.input_buf, 'n', '<leader><CR>', ':VILMSend<CR>',
+           {'nowait': True, 'noremap': True, 'silent': True}
         )
         self.nvim.api.buf_set_keymap(
-           self.input_buf, 'i', '<leader><CR>','<Esc>:VILMSend<CR>',
-            {'nowait': True, 'noremap': True, 'silent': True}
+           self.input_buf, 'i', '<leader><CR>', '<Esc>:VILMSend<CR>',
+           {'nowait': True, 'noremap': True, 'silent': True}
         )
 
     def _bind_close_key(self, buf):
@@ -222,7 +222,7 @@ class Vilm:
         with self._temporary_modifiable(self.chat_buf):
             ts = datetime.now().strftime('%H:%M:%S')
             self._append_to_buf(self.chat_buf,
-                    [f'@me ({ts}):'] + message.splitlines() + [''])
+                                [f'@me ({ts}):'] + message.splitlines() + [''])
             self._append_to_buf(self.chat_buf, [f'@{self.current_model}:'])
 
             self._set_buf_content(self.input_buf, [])
