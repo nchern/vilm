@@ -1,4 +1,4 @@
-# VILM - Neovim LLM interfacr Plugin
+# VILM - Neovim LLM interface Plugin
 
 Vi(m) L(L)Ms.
 
