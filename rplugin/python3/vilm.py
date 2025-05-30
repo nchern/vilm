@@ -3,6 +3,7 @@ import json
 import traceback
 
 from contextlib import contextmanager
+from dataclasses import dataclass, asdict
 from datetime import datetime
 from urllib.parse import urlparse
 
@@ -22,6 +23,12 @@ def _create_http_conn(api_url=API_BASE_URL, timeout=API_TIMEOUT_SEC):
     host = parsed.hostname or 'localhost'
     port = parsed.port or (443 if parsed.scheme == 'https' else 80)
     return http.client.HTTPConnection(host, port, timeout=timeout)
+
+
+@dataclass
+class Message:
+    role: str
+    content: str
 
 
 class LLMClient:
@@ -44,7 +51,7 @@ class LLMClient:
         payload = json.dumps({
             'stream': True,
             'model': model,
-            'messages': messages,
+            'messages': [asdict(msg) for msg in messages],
         })
         response = self._do_request('POST', '/api/chat', body=payload, headers=headers)
         for line in response:
@@ -130,7 +137,7 @@ class Vilm:
 
     def get_last_reply(self):
         if self.history:
-            return self.history[-1].get('content', '')
+            return self.history[-1].content
         return ''
 
     def _is_chat_open(self):
@@ -220,7 +227,7 @@ class Vilm:
         message = '\n'.join(lines).strip()
         if not message:
             return
-        self.history.append({'role': 'user', 'content': message})
+        self.history.append(Message(role='user', content=message))
 
         with self._temporary_modifiable(self.chat_buf):
             ts = datetime.now().strftime('%H:%M:%S')
@@ -232,7 +239,7 @@ class Vilm:
 
             full_response = self._chat_and_update(self.history)
             if full_response.strip():
-                self.history.append({'role': 'assistant', 'content': full_response})
+                self.history.append(Message(role='assistant', content=full_response))
 
             self._append_to_buf(self.chat_buf, [''])
 
