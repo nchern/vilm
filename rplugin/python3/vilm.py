@@ -141,6 +141,30 @@ class Vilm:
         lines = self.nvim.api.buf_get_lines(src_buf, start - 1, end, False)
         self._set_buf_content(dst_buf, lines)
 
+    @contextmanager
+    def _temporary_modifiable(self, buf):
+        self.nvim.api.buf_set_option(self.chat_buf, 'modifiable', True)
+        yield
+        self.nvim.api.buf_set_option(self.chat_buf, 'modifiable', False)
+
+    def _chat_and_update(self, messages):
+        full_response = ''
+        line_idx = self.nvim.api.buf_line_count(self.chat_buf)
+        try:
+            for chunk in self.client.chat(messages, self.current_model):
+                full_response += chunk
+                lines = full_response.splitlines()
+                if full_response.endswith('\n'):
+                    lines.append('')
+                self.nvim.api.buf_set_lines(
+                        self.chat_buf, line_idx, line_idx + len(lines), False, lines)
+                total = self.nvim.api.buf_line_count(self.chat_buf)
+                self.nvim.api.win_set_cursor(self.chat_win, [total, 0])
+        except Exception as ex:
+            trace = traceback.format_exc().splitlines()
+            self._append_to_buf(self.chat_buf, [f'[Exception] {str(ex)}'] + trace)
+        return full_response
+
     @pynvim.command('VILMChat', range='', nargs='0', sync=True)
     def open_chat(self, args, selected_range):
         if self._is_chat_open():
@@ -171,9 +195,9 @@ class Vilm:
         self.nvim.api.buf_set_option(self.input_buf, 'modifiable', True)
 
         if selected_range and selected_range != (0, 0):
-            self._copy_range(selected_range, orig_buf, self.input_buf)
-            end_col = len(self.nvim.current.buffer[selected_range[1] - 1])
+            end_col = len(orig_buf[selected_range[1] - 1])
             self.nvim.api.win_set_cursor(orig_win, [selected_range[1], end_col])
+            self._copy_range(selected_range, orig_buf, self.input_buf)
 
     @pynvim.command('VILMCloseChat', nargs='0')
     def close_chat(self, args):
@@ -185,30 +209,6 @@ class Vilm:
                 pass
         self.chat_win = None
         self.input_win = None
-
-    @contextmanager
-    def _temporary_modifiable(self, buf):
-        self.nvim.api.buf_set_option(self.chat_buf, 'modifiable', True)
-        yield
-        self.nvim.api.buf_set_option(self.chat_buf, 'modifiable', False)
-
-    def _process_chat_response(self, message):
-        line_idx = self.nvim.api.buf_line_count(self.chat_buf)
-        full_response = ""
-        try:
-            for chunk in self.client.chat(self.history, self.current_model):
-                full_response += chunk
-                lines = full_response.splitlines()
-                if full_response.endswith('\n'):
-                    lines.append('')
-                self.nvim.api.buf_set_lines(
-                        self.chat_buf, line_idx, line_idx + len(lines), False, lines)
-                total = self.nvim.api.buf_line_count(self.chat_buf)
-                self.nvim.api.win_set_cursor(self.chat_win, [total, 0])
-        except Exception as ex:
-            trace = traceback.format_exc().splitlines()
-            self._append_to_buf(self.chat_buf, [f'[Exception] {str(ex)}'] + trace)
-        return full_response
 
     @pynvim.command('VILMSend', nargs='0')
     def send_message(self, args):
@@ -230,7 +230,7 @@ class Vilm:
 
             self._set_buf_content(self.input_buf, [])
 
-            full_response = self._process_chat_response(message)
+            full_response = self._chat_and_update(self.history)
             if full_response.strip():
                 self.history.append({'role': 'assistant', 'content': full_response})
 
