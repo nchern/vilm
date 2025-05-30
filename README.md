@@ -32,3 +32,6 @@ Plug 'nchern/vilm', { 'do': ':UpdateRemotePlugins' }
 Currently VILM talks to LLMs via [Ollama](https://ollama.com)
 [API](https://github.com/ollama/ollama/blob/main/docs/api.md) and expects
 Ollama service listening on `localhost:11434`
+
+## Screenshots
+![Open chat window](/assets/vim-open-chat.png)
