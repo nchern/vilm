@@ -65,7 +65,6 @@ class LLMClient:
 
 
 # TODO_FEAT: Add :VILMAssist for inline help in the current buffer
-# TODO_FEAT: Add an abiltiy to pass system message to models for customization
 @pynvim.plugin
 class Vilm:
     def __init__(self, nvim):
@@ -158,6 +157,11 @@ class Vilm:
         full_response = ''
         line_idx = self.nvim.api.buf_line_count(self.chat_buf)
         try:
+            if self._get_model_instruction():
+                messages = [
+                        Message(role='system', content=self._get_model_instruction())
+                        ] + messages
+            self._log_message(str(messages))
             for chunk in self.client.chat(messages, self.current_model):
                 full_response += chunk
                 lines = full_response.splitlines()
@@ -171,6 +175,9 @@ class Vilm:
             trace = traceback.format_exc().splitlines()
             self._append_to_buf(self.chat_buf, [f'[Exception] {str(ex)}'] + trace)
         return full_response
+
+    def _get_model_instruction(self):
+        return self.nvim.vars.get('vilm_model_instruction', '')
 
     @pynvim.command('VILMChat', range='', nargs='0', sync=True)
     def open_chat(self, args, selected_range):
